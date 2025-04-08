@@ -1,5 +1,5 @@
-# Discord Role Assignment Bot
 
+<<<<<<< HEAD
 A Discord bot that lets users select which types of notifications they want to receive by assigning Discord roles.
 
 ## Features
@@ -143,3 +143,5 @@ Users can select roles by clicking on the buttons below the role message:
   - Ensure the bot has the "Manage Guild" permission
   - Check that the invite code in the .env file matches your actual invite code
   - Verify that the bot has the GUILD_INVITES intent enabled 
+=======
+>>>>>>> d8307ca91a201c25139a24a1670df2fc47aaf616
