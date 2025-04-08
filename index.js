@@ -12,11 +12,12 @@ const {
   Routes
 } = require('discord.js');
 
-// Create a new client instance with ONLY the Guilds intent
-// This should work without requiring any privileged intents
+// Create a new client instance with the necessary intents
 const client = new Client({ 
   intents: [
-    GatewayIntentBits.Guilds
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers, 
+    GatewayIntentBits.GuildInvites // Add this intent for invite tracking
   ] 
 });
 
@@ -44,19 +45,86 @@ const roleOptions = [
     value: 'Giveaways',
     roleId: process.env.GIVEAWAYS_ROLE_ID,
     color: ButtonStyle.Danger, // Red
-    confirmMessage: 'You now have the Giveaway role!'
+    confirmMessage: 'You now have the Giveaways role!'
   }
 ];
+
+// Define invite tracking constants
+const SPECIAL_INVITE_CODE = 'uWTYxBK'; // Original invite code
+const MAX_SPECIAL_USES = 50; // Maximum number of users to get the special role
+const SPECIAL_ROLE_ID = '1358906307788406784'; // Monaliens OG role ID
+
+// Cache to track invite usage
+let cachedInvites = new Map(); // { inviteCode: uses }
 
 // When the client is ready, run this code (only once)
 client.once(Events.ClientReady, async () => {
   console.log(`Logged in as ${client.user.tag}!`);
+  
+  // Fetch initial invites for the guild
+  try {
+    const guild = await client.guilds.fetch(process.env.GUILD_ID);
+    const invites = await guild.invites.fetch();
+    
+    invites.forEach((invite) => {
+      cachedInvites.set(invite.code, invite.uses);
+      console.log(`Cached invite: ${invite.code} with ${invite.uses} uses`);
+    });
+    
+    console.log('All invites cached successfully');
+  } catch (error) {
+    console.error('Error fetching initial invites:', error);
+  }
   
   // Register slash command to create/update the role message
   await registerCommands();
   
   // Check if the roles message already exists
   await setupRolesMessage();
+  
+  // Send the warning message
+  await sendWarningMessage();
+});
+
+// Track new members joining and check which invite they used
+client.on(Events.GuildMemberAdd, async (member) => {
+  try {
+    // Fetch the current invites
+    const newInvites = await member.guild.invites.fetch();
+    
+    // Find which invite was used
+    const usedInvite = newInvites.find((invite) => {
+      // Check if we have this invite cached
+      const cachedUses = cachedInvites.get(invite.code);
+      // If cached uses is undefined or less than current uses, this invite was used
+      return cachedUses !== undefined && cachedUses < invite.uses;
+    });
+    
+    // Update the cached invites
+    newInvites.forEach(invite => cachedInvites.set(invite.code, invite.uses));
+    
+    // If we found the used invite and it's our special one
+    if (usedInvite && usedInvite.code === SPECIAL_INVITE_CODE) {
+      console.log(`User ${member.user.tag} joined using the special invite!`);
+      
+      // Check if this user is within the first 50
+      if (usedInvite.uses <= MAX_SPECIAL_USES) {
+        // Assign the special role
+        try {
+          await member.roles.add(SPECIAL_ROLE_ID);
+          console.log(`Assigned Monaliens OG role to ${member.user.tag} - They were #${usedInvite.uses} to use the invite`);
+        } catch (error) {
+          console.error('Error assigning special role:', error);
+        }
+      } else {
+        console.log(`User ${member.user.tag} joined with the special invite but it's already been used more than ${MAX_SPECIAL_USES} times`);
+      }
+    } else {
+      console.log(`User ${member.user.tag} joined but we couldn't determine which invite they used`);
+    }
+  } catch (error) {
+    console.error('Error handling new member:', error);
+  }
 });
 
 // Register slash commands
@@ -65,6 +133,10 @@ async function registerCommands() {
     {
       name: 'setup-roles',
       description: 'Set up the roles message in the current channel'
+    },
+    {
+      name: 'send-warning',
+      description: 'Send the warning message with official links'
     }
   ];
 
@@ -160,6 +232,44 @@ function createRoleButtons() {
   return buttonRow;
 }
 
+// Send warning message with official links
+async function sendWarningMessage() {
+  try {
+    const warningChannelId = process.env.WARNING_CHANNEL_ID || '1338276001448202300';
+    
+    const channel = await client.channels.fetch(warningChannelId);
+    if (!channel) {
+      console.log(`Warning channel with ID ${warningChannelId} not found`);
+      return;
+    }
+
+    // Create the embed for the warning message
+    const embed = new EmbedBuilder()
+      .setColor('#FF0000')
+      .setTitle('DO NOT INTERACT WITH ANY OTHER LINKS')
+      .addFields(
+        { name: 'X', value: 'https://x.com/monaliens', inline: false },
+        { name: 'Website', value: 'https://monaliens.xyz/', inline: false }
+      );
+    
+    // If you want to add an image, uncomment this line and replace the URL
+    // embed.setImage('https://your-image-url-here.jpg');
+    
+    // Send the message
+    await channel.send({ embeds: [embed] });
+    console.log('Sent warning message');
+    
+    // Non-embed alternative (use this if you want the # symbol to render as a heading)
+    /*
+    await channel.send({ 
+      content: '# DO NOT INTERACT WITH ANY OTHER LINKS\n\nX:  https://x.com/monaliens\nWebsite: https://monaliens.xyz/' 
+    });
+    */
+  } catch (error) {
+    console.error('Error sending warning message:', error);
+  }
+}
+
 // Handle interactions
 client.on(Events.InteractionCreate, async interaction => {
   // Handle slash commands
@@ -179,6 +289,24 @@ client.on(Events.InteractionCreate, async interaction => {
       
       await interaction.reply({ 
         content: 'Roles message has been setup in this channel.', 
+        ephemeral: true 
+      });
+    }
+    else if (interaction.commandName === 'send-warning') {
+      // Check if the user has admin permissions
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        await interaction.reply({ 
+          content: 'You need admin permissions to use this command.', 
+          ephemeral: true 
+        });
+        return;
+      }
+      
+      // Send the warning message
+      await sendWarningMessage();
+      
+      await interaction.reply({ 
+        content: 'Warning message has been sent.', 
         ephemeral: true 
       });
     }

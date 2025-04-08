@@ -10,10 +10,19 @@ A Discord bot that lets users select which types of notifications they want to r
   - Giveaways: Don't miss a chance to win in our giveaways!
 - Roles are assigned when selected and removed when deselected
 - Clean UI with buttons for each role option
+- Warning message with official links can be sent to a designated channel
+- Special "Monaliens OG" role automatically assigned to the first 50 users who join using a specific invite link
 
 ## How It Works
 
 The bot creates an embed message asking "What do you want to be notified about?" with three button options. When users click the buttons, they toggle the corresponding role on their profile.
+
+### Invite Tracking System
+
+- The bot tracks uses of a specific invite link (discord.gg/uWTYxBK)
+- The first 50 users who join with this link automatically receive the "Monaliens OG" role
+- The bot caches invite counts to determine which invite was used by a new member
+- Detailed logging is provided to track invite usage and role assignments
 
 ## Setup
 
@@ -21,7 +30,9 @@ The bot creates an embed message asking "What do you want to be notified about?"
    - Go to the [Discord Developer Portal](https://discord.com/developers/applications)
    - Create a new application
    - Navigate to the "Bot" tab and click "Add Bot"
-   - No privileged intents are required for this bot
+   - Under the "Privileged Gateway Intents" section, enable:
+     - SERVER MEMBERS INTENT
+     - GUILD INVITES INTENT
    - Copy your bot token (click "Reset Token" if you need a new one)
    - **IMPORTANT**: You must use a real bot token in the .env file or you'll get a "TokenInvalid" error
 
@@ -30,6 +41,7 @@ The bot creates an embed message asking "What do you want to be notified about?"
    - Select the "bot" and "applications.commands" scopes
    - Select the following permissions:
      - Manage Roles
+     - Manage Guild (for invite tracking)
      - Send Messages
      - Read Messages/View Channels
      - Embed Links
@@ -40,26 +52,34 @@ The bot creates an embed message asking "What do you want to be notified about?"
      - Tweets
      - Games
      - Giveaways
+     - Monaliens OG (for the first 50 users)
    - Make sure your bot's role is positioned higher than these roles in the role hierarchy
 
-4. **Configure Environment Variables**
+4. **Create or Note Your Special Invite Link**
+   - Create an invite link in your server: discord.gg/uWTYxBK
+   - This will be the tracked invite for assigning the Monaliens OG role
+
+5. **Configure Environment Variables**
    - Rename the `.env.example` file to `.env`
    - Add your bot token, guild ID, and role IDs to the `.env` file:
      ```
      BOT_TOKEN=your_discord_bot_token_here
      GUILD_ID=your_guild_id_here
      CHANNEL_ID=your_channel_id_here
-     TWEETS_ROLE_ID=your_tweets_role_id
-     GAMES_ROLE_ID=your_games_role_id
-     GIVEAWAYS_ROLE_ID=your_giveaways_role_id
+     WARNING_CHANNEL_ID=your_warning_channel_id_here
+     TWEETS_ROLE_ID=your_tweets_role_id_here
+     GAMES_ROLE_ID=your_games_role_id_here
+     GIVEAWAYS_ROLE_ID=your_giveaways_role_id_here
+     SPECIAL_INVITE_CODE=uWTYxBK
+     SPECIAL_ROLE_ID=your_monaliens_og_role_id_here
      ```
 
-5. **Install Dependencies**
+6. **Install Dependencies**
    ```
    npm install
    ```
 
-6. **Start the Bot**
+7. **Start the Bot**
    ```
    npm start
    ```
@@ -76,12 +96,28 @@ The bot creates an embed message asking "What do you want to be notified about?"
    ```
 4. The bot will create or update a role selection message in that channel
 
+### Sending the Warning Message
+
+1. The bot automatically sends a warning message with official links when it starts up
+2. You can also manually trigger this message using the command:
+   ```
+   /send-warning
+   ```
+3. This message includes links to your official X account and website
+4. To add an image to this message, uncomment and modify the appropriate line in the `sendWarningMessage` function
+
 ### Selecting Roles
 
 Users can select roles by clicking on the buttons below the role message:
 - Click a button to add that role
 - Click a button again to remove that role
 - Users get a private confirmation when roles are added or removed
+
+### Invite Tracking
+
+- The bot automatically tracks which invite link new members use
+- If they use the special invite link (discord.gg/uWTYxBK), and are among the first 50 users, they get the Monaliens OG role
+- No user interaction is required for this feature - it happens automatically when they join
 
 ## Requirements
 
@@ -101,4 +137,9 @@ Users can select roles by clicking on the buttons below the role message:
 
 - If buttons don't work:
   - Restart the bot to ensure it's properly connected to Discord's gateway
-  - Check the console for any error messages 
+  - Check the console for any error messages
+
+- If invite tracking isn't working:
+  - Ensure the bot has the "Manage Guild" permission
+  - Check that the invite code in the .env file matches your actual invite code
+  - Verify that the bot has the GUILD_INVITES intent enabled 
