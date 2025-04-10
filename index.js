@@ -54,6 +54,13 @@ const SPECIAL_INVITE_CODE = 'uWTYxBK'; // Original invite code
 const MAX_SPECIAL_USES = 50; // Maximum number of users to get the special role
 const SPECIAL_ROLE_ID = '1358906307788406784'; // Monaliens OG role ID
 
+// Define role swap configuration
+const ROLE_SWAP_CONFIG = {
+  triggerRoleId: process.env.TRIGGER_ROLE_ID || '1358826605706744100', // Role that triggers the swap when added
+  removeRoleId: process.env.REMOVE_ROLE_ID || '1359518753926152365',  // Role to remove
+  addRoleId: process.env.ADD_ROLE_ID || '1358511994616942817'      // Role to add
+};
+
 // Cache to track invite usage
 let cachedInvites = new Map(); // { inviteCode: uses }
 
@@ -84,6 +91,40 @@ client.once(Events.ClientReady, async () => {
   
   // Send the warning message
   await sendWarningMessage();
+});
+
+// Track role changes to perform silent role swaps
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  try {
+    // Check if the trigger role was added (wasn't there before but is now)
+    const hadTriggerRole = oldMember.roles.cache.has(ROLE_SWAP_CONFIG.triggerRoleId);
+    const hasTriggerRole = newMember.roles.cache.has(ROLE_SWAP_CONFIG.triggerRoleId);
+    
+    // If the trigger role was just added
+    if (!hadTriggerRole && hasTriggerRole) {
+      console.log(`Trigger role was added to ${newMember.user.tag}, performing silent role swap`);
+      
+      // Check if member has the role that should be removed
+      if (newMember.roles.cache.has(ROLE_SWAP_CONFIG.removeRoleId)) {
+        // Remove the specified role
+        await newMember.roles.remove(ROLE_SWAP_CONFIG.removeRoleId)
+          .catch(error => console.error(`Failed to remove role: ${error}`));
+        console.log(`Silently removed role ${ROLE_SWAP_CONFIG.removeRoleId} from ${newMember.user.tag}`);
+        
+        // Check if the user already has the role to add
+        if (newMember.roles.cache.has(ROLE_SWAP_CONFIG.addRoleId)) {
+          console.log(`User ${newMember.user.tag} already has the role ${ROLE_SWAP_CONFIG.addRoleId}, no need to add it`);
+        } else {
+          // Add the new role
+          await newMember.roles.add(ROLE_SWAP_CONFIG.addRoleId)
+            .catch(error => console.error(`Failed to add role: ${error}`));
+          console.log(`Silently added role ${ROLE_SWAP_CONFIG.addRoleId} to ${newMember.user.tag}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error in role swap process:', error);
+  }
 });
 
 // Track new members joining and check which invite they used

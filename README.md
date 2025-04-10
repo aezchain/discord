@@ -1,5 +1,5 @@
+# Discord Role Assignment Bot
 
-<<<<<<< HEAD
 A Discord bot that lets users select which types of notifications they want to receive by assigning Discord roles.
 
 ## Features
@@ -12,6 +12,7 @@ A Discord bot that lets users select which types of notifications they want to r
 - Clean UI with buttons for each role option
 - Warning message with official links can be sent to a designated channel
 - Special "Monaliens OG" role automatically assigned to the first 50 users who join using a specific invite link
+- Silent role swapping when specific roles are assigned
 
 ## How It Works
 
@@ -23,6 +24,13 @@ The bot creates an embed message asking "What do you want to be notified about?"
 - The first 50 users who join with this link automatically receive the "Monaliens OG" role
 - The bot caches invite counts to determine which invite was used by a new member
 - Detailed logging is provided to track invite usage and role assignments
+
+### Silent Role Swap System
+
+- When a specific role (trigger role) is assigned to a member, the bot performs a silent role swap
+- If the member has a certain role (remove role), it is removed and another role (add role) is assigned
+- This process happens silently with no notifications or messages to the user
+- All actions are logged in the console for monitoring
 
 ## Setup
 
@@ -72,6 +80,9 @@ The bot creates an embed message asking "What do you want to be notified about?"
      GIVEAWAYS_ROLE_ID=your_giveaways_role_id_here
      SPECIAL_INVITE_CODE=uWTYxBK
      SPECIAL_ROLE_ID=your_monaliens_og_role_id_here
+     TRIGGER_ROLE_ID=your_trigger_role_id_here
+     REMOVE_ROLE_ID=your_remove_role_id_here
+     ADD_ROLE_ID=your_add_role_id_here
      ```
 
 6. **Install Dependencies**
@@ -119,6 +130,14 @@ Users can select roles by clicking on the buttons below the role message:
 - If they use the special invite link (discord.gg/uWTYxBK), and are among the first 50 users, they get the Monaliens OG role
 - No user interaction is required for this feature - it happens automatically when they join
 
+### Silent Role Swap
+
+- This feature works automatically without any user interaction
+- When a member is assigned the trigger role (role ID: 1358826605706744100)
+- If they have the removal role (role ID: 1359518753926152365), it will be removed
+- The addition role (role ID: 1358511994616942817) will be silently added
+- No notifications or messages are sent to the user or in any channels
+
 ## Requirements
 
 - Node.js v16.9.0 or higher
@@ -142,6 +161,4 @@ Users can select roles by clicking on the buttons below the role message:
 - If invite tracking isn't working:
   - Ensure the bot has the "Manage Guild" permission
   - Check that the invite code in the .env file matches your actual invite code
-  - Verify that the bot has the GUILD_INVITES intent enabled 
-=======
->>>>>>> d8307ca91a201c25139a24a1670df2fc47aaf616
+  - Verify that the bot has the GUILD_INVITES intent enabled
