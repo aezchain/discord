@@ -96,16 +96,53 @@ client.once(Events.ClientReady, async () => {
 // Track role changes to perform silent role swaps
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   try {
+    console.log(`Member update detected for ${newMember.user.tag}`);
+    
     // Check if the trigger role was added (wasn't there before but is now)
     const hadTriggerRole = oldMember.roles.cache.has(ROLE_SWAP_CONFIG.triggerRoleId);
     const hasTriggerRole = newMember.roles.cache.has(ROLE_SWAP_CONFIG.triggerRoleId);
     
-    // If the trigger role was just added
-    if (!hadTriggerRole && hasTriggerRole) {
+    console.log(`Role status for ${newMember.user.tag}: Trigger role before=${hadTriggerRole}, after=${hasTriggerRole}`);
+    
+    // Compare all roles to identify what changed
+    const oldRoles = Array.from(oldMember.roles.cache.keys());
+    const newRoles = Array.from(newMember.roles.cache.keys());
+    
+    const addedRoles = newRoles.filter(role => !oldRoles.includes(role));
+    const removedRoles = oldRoles.filter(role => !newRoles.includes(role));
+    
+    console.log(`Roles changed for ${newMember.user.tag}: Added=[${addedRoles.join(', ')}], Removed=[${removedRoles.join(', ')}]`);
+    
+    // If the trigger role was just added OR we detect the trigger role was added (in case the event fires differently)
+    if ((!hadTriggerRole && hasTriggerRole) || addedRoles.includes(ROLE_SWAP_CONFIG.triggerRoleId)) {
       console.log(`Trigger role was added to ${newMember.user.tag}, performing silent role swap`);
       
       // Check if member has the role that should be removed
       if (newMember.roles.cache.has(ROLE_SWAP_CONFIG.removeRoleId)) {
+        // Remove the specified role
+        await newMember.roles.remove(ROLE_SWAP_CONFIG.removeRoleId)
+          .catch(error => console.error(`Failed to remove role: ${error}`));
+        console.log(`Silently removed role ${ROLE_SWAP_CONFIG.removeRoleId} from ${newMember.user.tag}`);
+        
+        // Check if the user already has the role to add
+        if (newMember.roles.cache.has(ROLE_SWAP_CONFIG.addRoleId)) {
+          console.log(`User ${newMember.user.tag} already has the role ${ROLE_SWAP_CONFIG.addRoleId}, no need to add it`);
+        } else {
+          // Add the new role
+          await newMember.roles.add(ROLE_SWAP_CONFIG.addRoleId)
+            .catch(error => console.error(`Failed to add role: ${error}`));
+          console.log(`Silently added role ${ROLE_SWAP_CONFIG.addRoleId} to ${newMember.user.tag}`);
+        }
+      } else {
+        console.log(`User ${newMember.user.tag} doesn't have the role to remove (${ROLE_SWAP_CONFIG.removeRoleId})`);
+      }
+    } else if (hasTriggerRole) {
+      // If they already have the trigger role but not the role to be removed
+      console.log(`User ${newMember.user.tag} already has trigger role. Checking if role swap is needed...`);
+      
+      if (newMember.roles.cache.has(ROLE_SWAP_CONFIG.removeRoleId)) {
+        console.log(`Found role to remove. Performing role swap for ${newMember.user.tag}`);
+        
         // Remove the specified role
         await newMember.roles.remove(ROLE_SWAP_CONFIG.removeRoleId)
           .catch(error => console.error(`Failed to remove role: ${error}`));
